@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   subsets: ["latin"],
+  display: "swap",
   variable: "--font-sans",
 });
 
@@ -20,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`font-sans ${inter.variable} bg-gray-50 min-h-screen`}>
+    <html lang="en" className={inter.variable}>
+      <body className="font-sans bg-gray-50 min-h-screen">
         <Toaster position="top-right" />
         {children}
       </body>

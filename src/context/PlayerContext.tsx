@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import React, { createContext, useContext, useState, type ReactNode } from "react";
 import { type Player, initialPlayers } from "~/types/player";
 import toast from "react-hot-toast";
 
-type PlayerContextType = {
+export type PlayerContextType = {
   players: Player[];
   addPlayer: (player: Omit<Player, "id">) => void;
   updatePlayer: (player: Player) => void;
