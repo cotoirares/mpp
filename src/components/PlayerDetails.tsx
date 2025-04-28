@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePlayerContext } from "~/context/PlayerContext";
 import type { Player } from "~/types/player";
 import PlayerForm from "./PlayerForm";
+import VideoUploader from "./VideoUploader";
 
 type PlayerDetailsProps = {
   player: Player;
@@ -39,8 +40,9 @@ export default function PlayerDetails({ player, onClose }: PlayerDetailsProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg max-h-[90vh] overflow-y-auto">
         <h2 className="mb-4 text-2xl font-bold">{player.name}</h2>
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="font-medium text-gray-600">Age</p>
@@ -66,6 +68,11 @@ export default function PlayerDetails({ player, onClose }: PlayerDetailsProps) {
             <p className="font-medium text-gray-600">Height</p>
             <p>{player.height} cm</p>
           </div>
+        </div>
+
+        {/* Video uploader component */}
+        <div className="mt-6">
+          <VideoUploader playerId={player.id} />
         </div>
 
         <div className="mt-6 flex justify-end gap-2">

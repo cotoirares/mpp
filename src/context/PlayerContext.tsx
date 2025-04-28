@@ -1,88 +1,173 @@
 "use client";
 
-import React, { createContext, useContext, useState, type ReactNode } from "react";
-import { type Player, initialPlayers } from "~/types/player";
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { type Player, type PlayerFilter } from "~/types/player";
+import { api } from "~/services/api";
 import toast from "react-hot-toast";
 
 export type PlayerContextType = {
   players: Player[];
-  addPlayer: (player: Omit<Player, "id">) => void;
-  updatePlayer: (player: Player) => void;
-  deletePlayer: (id: string) => void;
-  sortPlayers: (key: keyof Player) => void;
-  filterPlayers: (criteria: Partial<Player>) => void;
-  resetFilters: () => void;
+  addPlayer: (player: Omit<Player, "id">) => Promise<void>;
+  updatePlayer: (player: Player) => Promise<void>;
+  deletePlayer: (id: string) => Promise<void>;
+  sortPlayers: (key: keyof Player) => Promise<void>;
+  filterPlayers: (criteria: PlayerFilter) => Promise<void>;
+  resetFilters: () => Promise<void>;
+  loadMore: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
+  hasMore: boolean;
+  isInfiniteMode: boolean;
+  toggleInfiniteMode: () => Promise<void>;
+  currentSort: {
+    key?: keyof Player;
+    sortOrder?: 'asc' | 'desc';
+  };
 };
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
-  const [originalPlayers, setOriginalPlayers] = useState<Player[]>(initialPlayers);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentSort, setCurrentSort] = useState<{
+    key?: keyof Player;
+    sortOrder?: 'asc' | 'desc';
+  }>({});
+  const [currentFilters, setCurrentFilters] = useState<PlayerFilter>({});
+  const [cursor, setCursor] = useState<number>(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [isInfiniteMode, setIsInfiniteMode] = useState(false);
 
-  const generateUniqueId = () => {
-    const maxId = Math.max(...players.map(p => parseInt(p.id)), 0);
-    return (maxId + 1).toString();
-  };
+  // Fetch initial data
+  useEffect(() => {
+    void fetchPlayers({ reset: true });
+  }, [isInfiniteMode]);
 
-  const addPlayer = (player: Omit<Player, "id">) => {
-    const newPlayer = {
-      ...player,
-      id: generateUniqueId(),
-    };
-    const updatedPlayers = [...players, newPlayer];
-    setPlayers(updatedPlayers);
-    setOriginalPlayers(updatedPlayers);
-    toast.success(`Successfully added player ${player.name}`);
-  };
+  const fetchPlayers = async (params?: {
+    sortBy?: keyof Player;
+    sortOrder?: 'asc' | 'desc';
+    filters?: PlayerFilter;
+    reset?: boolean;
+  }) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const updatePlayer = (updatedPlayer: Player) => {
-    const updatedPlayers = players.map((player) =>
-      player.id === updatedPlayer.id ? updatedPlayer : player
-    );
-    setPlayers(updatedPlayers);
-    setOriginalPlayers(updatedPlayers);
-    toast.success(`Successfully updated player ${updatedPlayer.name}`);
-  };
-
-  const deletePlayer = (id: string) => {
-    const playerToDelete = players.find(p => p.id === id);
-    if (!playerToDelete) return;
-    
-    const updatedPlayers = players.filter((player) => player.id !== id);
-    setPlayers(updatedPlayers);
-    setOriginalPlayers(updatedPlayers);
-    toast.success(`Successfully deleted player ${playerToDelete.name}`);
-  };
-
-  const sortPlayers = (key: keyof Player) => {
-    const sorted = [...players].sort((a, b) => {
-      if (typeof a[key] === "string" && typeof b[key] === "string") {
-        return (a[key] as string).localeCompare(b[key] as string);
+      if (params?.reset) {
+        setCursor(0);
+        setPlayers([]);
       }
-      return (a[key] as number) - (b[key] as number);
-    });
-    setPlayers(sorted);
-  };
 
-  const filterPlayers = (criteria: Partial<Player>) => {
-    const filtered = originalPlayers.filter((player) => {
-      return Object.entries(criteria).every(([key, value]) => {
-        if (value === undefined || value === "") return true;
-        if (typeof value === "string") {
-          return player[key as keyof Player]
-            .toString()
-            .toLowerCase()
-            .includes(value.toLowerCase());
-        }
-        return player[key as keyof Player] === value;
+      const response = await api.getPlayers({
+        cursor: params?.reset ? 0 : cursor,
+        limit: isInfiniteMode ? 20 : 20,
+        sortBy: params?.sortBy ?? currentSort.key,
+        sortOrder: params?.sortOrder ?? currentSort.sortOrder,
+        filters: params?.filters ?? currentFilters,
+        infinite: isInfiniteMode
       });
-    });
-    setPlayers(filtered);
+
+      if (params?.reset) {
+        setPlayers(response.players);
+      } else if (isInfiniteMode) {
+        setPlayers(prev => [...prev, ...response.players]);
+      } else {
+        setPlayers(response.players);
+      }
+
+      setCursor(response.nextCursor ?? cursor);
+      setHasMore(response.hasMore);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch players');
+      toast.error('Failed to fetch players');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const resetFilters = () => {
-    setPlayers(originalPlayers);
+  const toggleInfiniteMode = async () => {
+    setIsInfiniteMode(prev => !prev);
+  };
+
+  const loadMore = async () => {
+    if (!hasMore || loading || !isInfiniteMode) return;
+    await fetchPlayers();
+  };
+
+  const sortPlayers = async (key: keyof Player) => {
+    if (isInfiniteMode) return; // Disable sorting in infinite mode
+    const newOrder = currentSort.key === key && currentSort.sortOrder === 'asc' ? 'desc' : 'asc';
+    setCurrentSort({ key, sortOrder: newOrder });
+    await fetchPlayers({
+      sortBy: key,
+      sortOrder: newOrder,
+      reset: true
+    });
+  };
+
+  const filterPlayers = async (criteria: PlayerFilter) => {
+    if (isInfiniteMode) return; // Disable filtering in infinite mode
+    setCurrentFilters(criteria);
+    await fetchPlayers({
+      filters: criteria,
+      reset: true
+    });
+  };
+
+  const resetFilters = async () => {
+    setCurrentFilters({});
+    setCurrentSort({});
+    await fetchPlayers({ reset: true });
+  };
+
+  const addPlayer = async (player: Omit<Player, "id">) => {
+    if (isInfiniteMode) return; // Disable adding in infinite mode
+    try {
+      setLoading(true);
+      setError(null);
+      await api.createPlayer(player);
+      await fetchPlayers({ reset: true });
+      toast.success(`Successfully added player ${player.name}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add player');
+      toast.error('Failed to add player');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePlayer = async (updatedPlayer: Player) => {
+    if (isInfiniteMode) return; // Disable updating in infinite mode
+    try {
+      setLoading(true);
+      setError(null);
+      await api.updatePlayer(updatedPlayer.id, updatedPlayer);
+      await fetchPlayers({ reset: true });
+      toast.success(`Successfully updated player ${updatedPlayer.name}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update player');
+      toast.error('Failed to update player');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deletePlayer = async (id: string) => {
+    if (isInfiniteMode) return; // Disable deleting in infinite mode
+    try {
+      setLoading(true);
+      setError(null);
+      await api.deletePlayer(id);
+      await fetchPlayers({ reset: true });
+      toast.success('Successfully deleted player');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete player');
+      toast.error('Failed to delete player');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,6 +180,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         sortPlayers,
         filterPlayers,
         resetFilters,
+        loadMore,
+        loading,
+        error,
+        hasMore,
+        isInfiniteMode,
+        toggleInfiniteMode,
+        currentSort
       }}
     >
       {children}

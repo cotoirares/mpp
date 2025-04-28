@@ -9,6 +9,13 @@ export type Player = {
   height: number;
 };
 
+export type PlayerFilter = Partial<Player> & {
+  minAge?: number;
+  maxAge?: number;
+  minRank?: number;
+  maxRank?: number;
+};
+
 export const initialPlayers: Player[] = [
   {
     id: "1",

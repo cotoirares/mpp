@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { usePlayerContext } from "~/context/PlayerContext";
-import type { Player } from "~/types/player";
+import type { Player, PlayerFilter } from "~/types/player";
 import PlayerDetails from "~/components/PlayerDetails";
 import { BarChart, LineChart, PieChart } from "~/components/Charts";
+import { websocket } from "~/services/websocket";
+import toast from "react-hot-toast";
 
 export default function PlayerList() {
-  const { players, sortPlayers, filterPlayers, resetFilters, deletePlayer } = usePlayerContext();
+  const {
+    players,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    isInfiniteMode,
+    toggleInfiniteMode,
+    currentSort,
+    sortPlayers,
+    filterPlayers,
+    resetFilters
+  } = usePlayerContext();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
     name: "",
     country: "",
@@ -19,25 +32,36 @@ export default function PlayerList() {
     maxRank: "",
   });
 
-  const itemsPerPage = 5;
-  const totalPages = Math.ceil(players.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentPlayers = players.slice(startIndex, endIndex);
+  const observer = useRef<IntersectionObserver>();
+  const lastPlayerRef = useCallback((node: HTMLElement | null) => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting && hasMore) {
+        void loadMore();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore, loadMore]);
 
   const handleSort = (key: keyof Player) => {
-    sortPlayers(key);
+    if (isInfiniteMode) return;
+    void sortPlayers(key);
   };
 
-  const handleFilter = () => {
-    const criteria: Partial<Player> = {};
+  const handleFilter = async () => {
+    const criteria: PlayerFilter = {};
     if (filters.name) criteria.name = filters.name;
     if (filters.country) criteria.country = filters.country;
+    if (filters.minAge) criteria.minAge = parseInt(filters.minAge);
+    if (filters.maxAge) criteria.maxAge = parseInt(filters.maxAge);
+    if (filters.minRank) criteria.minRank = parseInt(filters.minRank);
+    if (filters.maxRank) criteria.maxRank = parseInt(filters.maxRank);
     
-    filterPlayers(criteria);
+    await filterPlayers(criteria);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setFilters({
       name: "",
       country: "",
@@ -46,7 +70,7 @@ export default function PlayerList() {
       minRank: "",
       maxRank: "",
     });
-    resetFilters();
+    await resetFilters();
   };
 
   const getHighlightClass = (key: keyof Player, value: number | string) => {
@@ -73,7 +97,7 @@ export default function PlayerList() {
     { key: "height", label: "Height (cm)" },
   ];
 
-  const stats = {
+  const stats = players.length > 0 ? {
     totalPlayers: players.length,
     averageAge: Math.round(
       players.reduce((acc, player) => acc + player.age, 0) / players.length
@@ -81,10 +105,76 @@ export default function PlayerList() {
     averageGrandSlams: Math.round(
       players.reduce((acc, player) => acc + player.grandSlams, 0) / players.length
     ),
+  } : {
+    totalPlayers: 0,
+    averageAge: 0,
+    averageGrandSlams: 0
   };
+
+  useEffect(() => {
+    // Subscribe to WebSocket updates
+    websocket.subscribe({
+      onNewPlayer: (player) => {
+        toast.success(`New player added: ${player.name}`, {
+          duration: 3000,
+          position: 'bottom-right',
+          icon: '🎾',
+          style: {
+            background: '#10B981',
+            color: '#fff',
+          },
+        });
+      },
+      onStatsUpdate: (stats) => {
+        // Update stats if needed
+      }
+    });
+
+    // Cleanup subscription
+    return () => websocket.unsubscribe();
+  }, []);
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-100 p-4 text-red-700">
+        <p>Error: {error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
+      {loading && (
+        <div className="flex items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Tennis Players</h2>
+        <button
+          onClick={() => void toggleInfiniteMode()}
+          className="rounded bg-purple-500 px-4 py-2 font-bold text-white hover:bg-purple-700 disabled:opacity-50"
+          disabled={loading}
+        >
+          {isInfiniteMode ? "Switch to Standard Mode" : "View All Players"}
+        </button>
+      </div>
+
+      {!isInfiniteMode && (
+        <div className="flex justify-between items-center text-sm text-gray-500">
+          <p>Showing {players.length} players in standard mode with full CRUD functionality</p>
+          <p>Sort and filter operations are available</p>
+        </div>
+      )}
+
+      {isInfiniteMode && (
+        <div className="flex justify-between items-center text-sm text-gray-500">
+          <p>Infinite scrolling mode - CRUD operations disabled</p>
+          <p>Keep scrolling to load more players</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-lg font-semibold">Player Statistics</h3>
@@ -118,6 +208,7 @@ export default function PlayerList() {
             onChange={(e) => setFilters({ ...filters, name: e.target.value })}
             className="mt-1 w-full rounded-md border p-2"
             placeholder="Filter by name"
+            disabled={loading || isInfiniteMode}
           />
         </div>
         <div>
@@ -128,18 +219,63 @@ export default function PlayerList() {
             onChange={(e) => setFilters({ ...filters, country: e.target.value })}
             className="mt-1 w-full rounded-md border p-2"
             placeholder="Filter by country"
+            disabled={loading || isInfiniteMode}
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Age Range</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={filters.minAge}
+              onChange={(e) => setFilters({ ...filters, minAge: e.target.value })}
+              className="mt-1 w-full rounded-md border p-2"
+              placeholder="Min age"
+              disabled={loading || isInfiniteMode}
+            />
+            <input
+              type="number"
+              value={filters.maxAge}
+              onChange={(e) => setFilters({ ...filters, maxAge: e.target.value })}
+              className="mt-1 w-full rounded-md border p-2"
+              placeholder="Max age"
+              disabled={loading || isInfiniteMode}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Rank Range</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={filters.minRank}
+              onChange={(e) => setFilters({ ...filters, minRank: e.target.value })}
+              className="mt-1 w-full rounded-md border p-2"
+              placeholder="Min rank"
+              disabled={loading || isInfiniteMode}
+            />
+            <input
+              type="number"
+              value={filters.maxRank}
+              onChange={(e) => setFilters({ ...filters, maxRank: e.target.value })}
+              className="mt-1 w-full rounded-md border p-2"
+              placeholder="Max rank"
+              disabled={loading || isInfiniteMode}
+            />
+          </div>
         </div>
         <div className="flex items-end gap-2">
           <button
-            onClick={handleFilter}
-            className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+            onClick={() => void handleFilter()}
+            className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+            disabled={loading || isInfiniteMode}
           >
             Apply Filters
           </button>
           <button
-            onClick={handleReset}
-            className="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700"
+            onClick={() => void handleReset()}
+            className="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700 disabled:opacity-50"
+            disabled={loading || isInfiniteMode}
           >
             Reset
           </button>
@@ -153,10 +289,17 @@ export default function PlayerList() {
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                  onClick={() => handleSort(column.key)}
+                  className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 ${
+                    !isInfiniteMode ? 'cursor-pointer hover:bg-gray-100' : ''
+                  }`}
+                  onClick={() => !isInfiniteMode && void handleSort(column.key)}
                 >
                   {column.label}
+                  {!isInfiniteMode && currentSort?.key === column.key && (
+                    <span className="ml-2">
+                      {currentSort.sortOrder === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
                 </th>
               ))}
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -165,11 +308,14 @@ export default function PlayerList() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {currentPlayers.map((player) => (
-              <tr key={player.id}>
+            {players.map((player, index) => (
+              <tr 
+                key={`${player.id}-${index}`} 
+                ref={isInfiniteMode && index === players.length - 1 ? lastPlayerRef : undefined}
+              >
                 {columns.map((column) => (
                   <td
-                    key={column.key}
+                    key={`${player.id}-${column.key}-${index}`}
                     className={`whitespace-nowrap px-6 py-4 ${getHighlightClass(
                       column.key,
                       player[column.key]
@@ -182,8 +328,9 @@ export default function PlayerList() {
                   <button
                     onClick={() => setSelectedPlayer(player)}
                     className="text-blue-600 hover:text-blue-900"
+                    disabled={loading || isInfiniteMode}
                   >
-                    View/Edit
+                    {isInfiniteMode ? "View" : "View/Edit"}
                   </button>
                 </td>
               </tr>
@@ -192,31 +339,44 @@ export default function PlayerList() {
         </table>
       </div>
 
-      <div className="flex justify-center gap-2">
-        <button
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-          className="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700 disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="flex items-center px-4 py-2">
-          Page {currentPage} of {totalPages}
-        </span>
-        <button
-          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
-          className="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700 disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
+      {isInfiniteMode && hasMore && !loading && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => void loadMore()}
+            className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+          >
+            Load More
+          </button>
+        </div>
+      )}
 
-      {selectedPlayer && (
+      {selectedPlayer && !isInfiniteMode && (
         <PlayerDetails
           player={selectedPlayer}
           onClose={() => setSelectedPlayer(null)}
         />
+      )}
+
+      {selectedPlayer && isInfiniteMode && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h3 className="text-lg font-semibold mb-4">Player Details</h3>
+            <div className="space-y-2">
+              {Object.entries(selectedPlayer).map(([key, value]) => (
+                <p key={key}>
+                  <span className="font-medium">{key}: </span>
+                  {value.toString()}
+                </p>
+              ))}
+            </div>
+            <button
+              onClick={() => setSelectedPlayer(null)}
+              className="mt-4 rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
