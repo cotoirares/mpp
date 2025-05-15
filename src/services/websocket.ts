@@ -35,21 +35,60 @@ type WebSocketCallbacks = {
   onConnectionChange?: (isConnected: boolean) => void;
 };
 
+// Mock static data for charts
+const MOCK_STATS = {
+  totalPlayers: 150,
+  averageAge: 27.4,
+  averageRank: 78.2,
+  averageHeight: 185.6,
+  totalGrandSlams: 42,
+  rightHanded: 120,
+  leftHanded: 30,
+  countryStats: {
+    'USA': 30,
+    'Spain': 25,
+    'France': 20,
+    'Germany': 18,
+    'UK': 15,
+    'Russia': 12,
+    'Argentina': 10,
+    'Italy': 8,
+    'Australia': 7,
+    'Switzerland': 5
+  },
+  ageStats: [
+    { range: '18-22', count: 32 },
+    { range: '23-27', count: 48 },
+    { range: '28-32', count: 37 },
+    { range: '33-37', count: 25 },
+    { range: '38+', count: 8 }
+  ],
+  grandSlamStats: [
+    { range: '0', count: 130 },
+    { range: '1-2', count: 12 },
+    { range: '3-5', count: 5 },
+    { range: '6-10', count: 2 },
+    { range: '10+', count: 1 }
+  ],
+  handStats: {
+    'Right': 120,
+    'Left': 30
+  }
+};
+
 class WebSocketClient {
   private static instance: WebSocketClient;
-  private ws: WebSocket | null = null;
   private callbacks: WebSocketCallbacks = {};
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private isConnected = false;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 2000; // Start with 2 seconds
-  private backendPort = 3001;
+  private isConnected = true; // Always show as connected
+  private generationRate = 5000;
+  private mockPlayers: Player[] = [];
 
   private constructor() {
-    // Only attempt to connect if in browser environment
+    // Instead of connecting to WebSocket, simulate being connected with mock data
     if (isBrowser) {
-      this.connect();
+      setTimeout(() => {
+        this.simulateConnection();
+      }, 1000);
     }
   }
 
@@ -60,142 +99,48 @@ class WebSocketClient {
     return WebSocketClient.instance;
   }
 
-  private getWebSocketUrl(): string {
-    if (!isBrowser) return ''; // Safety check
+  private simulateConnection() {
+    console.log('Mock WebSocket initialized');
+    this.isConnected = true;
     
-    // Use dynamic protocol based on the current page protocol
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.hostname}:${this.backendPort}`;
-  }
-
-  private connect() {
-    // Don't attempt to connect on server-side
-    if (!isBrowser) return;
-    
-    try {
-      // Close existing connection if there is one
-      if (this.ws) {
-        this.ws.onclose = null; // Prevent the reconnect logic on intentional close
-        this.ws.close();
-      }
-
-      const wsUrl = this.getWebSocketUrl();
-      console.log(`Attempting WebSocket connection to: ${wsUrl}`);
-      
-      this.ws = new WebSocket(wsUrl);
-
-      this.ws.onopen = () => {
-        console.log('WebSocket connected successfully');
-        this.isConnected = true;
-        this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-        this.notifyConnectionChange(true);
-        
-        if (this.reconnectTimer) {
-          clearTimeout(this.reconnectTimer);
-          this.reconnectTimer = null;
-        }
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          
-          switch (message.type) {
-            case 'initial':
-              if (message.data.players && message.data.stats && this.callbacks.onInitialData) {
-                this.callbacks.onInitialData({
-                  players: message.data.players,
-                  stats: message.data.stats
-                });
-              }
-              if (message.data.stats && this.callbacks.onStatsUpdate) {
-                this.callbacks.onStatsUpdate(message.data.stats);
-              }
-              break;
-            case 'update':
-              if (message.data.newPlayer && this.callbacks.onNewPlayer) {
-                this.callbacks.onNewPlayer(message.data.newPlayer);
-              }
-              if (message.data.stats && this.callbacks.onStatsUpdate) {
-                this.callbacks.onStatsUpdate(message.data.stats);
-              }
-              break;
-            case 'bulkUpdate':
-              if (message.data.newPlayers && this.callbacks.onBulkUpdate) {
-                this.callbacks.onBulkUpdate(message.data.newPlayers);
-              }
-              if (message.data.stats && this.callbacks.onStatsUpdate) {
-                this.callbacks.onStatsUpdate(message.data.stats);
-              }
-              break;
-            case 'rateChanged':
-              if (message.data.generationRate !== undefined && this.callbacks.onRateChanged) {
-                this.callbacks.onRateChanged(message.data.generationRate);
-              }
-              break;
-          }
-        } catch (error) {
-          console.error('Error processing WebSocket message:', error);
-        }
-      };
-
-      this.ws.onclose = (event) => {
-        console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
-        this.isConnected = false;
-        this.notifyConnectionChange(false);
-        this.scheduleReconnect();
-      };
-
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        this.isConnected = false;
-        this.notifyConnectionChange(false);
-        // Don't schedule reconnect here, we'll let onclose handle it
-      };
-    } catch (error) {
-      console.error('Error creating WebSocket:', error);
-      this.scheduleReconnect();
-    }
-  }
-
-  private scheduleReconnect() {
-    // Don't attempt to reconnect on server-side
-    if (!isBrowser) return;
-    
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      // Exponential backoff: increases delay with each failed attempt
-      const delay = Math.min(30000, this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts));
-      this.reconnectAttempts++;
-      
-      console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-      
-      // Use global setTimeout instead of window.setTimeout
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectTimer = null;
-        this.connect();
-      }, delay);
-    } else {
-      console.error(`Maximum reconnect attempts (${this.maxReconnectAttempts}) reached. Giving up.`);
-    }
-  }
-
-  private notifyConnectionChange(isConnected: boolean) {
+    // Notify connected status
     if (this.callbacks.onConnectionChange) {
-      this.callbacks.onConnectionChange(isConnected);
+      this.callbacks.onConnectionChange(true);
+    }
+    
+    // Send initial mock data
+    if (this.callbacks.onInitialData) {
+      this.callbacks.onInitialData({
+        players: this.mockPlayers,
+        stats: MOCK_STATS
+      });
+    }
+    
+    if (this.callbacks.onStatsUpdate) {
+      this.callbacks.onStatsUpdate(MOCK_STATS);
     }
   }
 
   public subscribe(callbacks: WebSocketCallbacks) {
     this.callbacks = { ...this.callbacks, ...callbacks };
     
-    // If we're already connected, immediately notify
-    if (this.isConnected && callbacks.onConnectionChange) {
-      callbacks.onConnectionChange(true);
-    }
+    // Immediately simulate connection and data
+    setTimeout(() => {
+      if (callbacks.onConnectionChange) {
+        callbacks.onConnectionChange(true);
+      }
+      
+      if (callbacks.onInitialData) {
+        callbacks.onInitialData({
+          players: this.mockPlayers,
+          stats: MOCK_STATS
+        });
+      }
+      
+      if (callbacks.onStatsUpdate) {
+        callbacks.onStatsUpdate(MOCK_STATS);
+      }
+    }, 500);
     
     return () => this.unsubscribe();
   }
@@ -209,32 +154,33 @@ class WebSocketClient {
   }
 
   public forceReconnect() {
-    if (!isBrowser) return;
-    
-    this.reconnectAttempts = 0; // Reset the counter
-    this.connect(); // Force a new connection
+    // Simulate reconnection with mock data
+    setTimeout(() => {
+      this.simulateConnection();
+    }, 1000);
   }
 
   public sendCommand(command: string, value?: any) {
-    if (!isBrowser) return;
-    
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'command',
-        command,
-        value
-      }));
-    } else {
-      console.warn('Cannot send command: WebSocket not connected');
-    }
+    console.log(`Mock command received: ${command}`, value);
   }
 
   public generatePlayers(count: number) {
-    this.sendCommand('generatePlayers', count);
+    console.log(`Mock generating ${count} players`);
+    // Could simulate updating stats if needed
+    if (this.callbacks.onStatsUpdate) {
+      const updatedStats = {...MOCK_STATS};
+      updatedStats.totalPlayers += count;
+      this.callbacks.onStatsUpdate(updatedStats);
+    }
   }
 
   public setGenerationRate(milliseconds: number) {
-    this.sendCommand('changeGenerationRate', milliseconds);
+    console.log(`Mock setting generation rate to ${milliseconds}ms`);
+    this.generationRate = milliseconds;
+    
+    if (this.callbacks.onRateChanged) {
+      this.callbacks.onRateChanged(milliseconds);
+    }
   }
 }
 

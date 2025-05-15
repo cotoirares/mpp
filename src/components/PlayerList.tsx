@@ -20,7 +20,8 @@ export default function PlayerList() {
     currentSort,
     sortPlayers,
     filterPlayers,
-    resetFilters
+    resetFilters,
+    lastSortDuration
   } = usePlayerContext();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [filters, setFilters] = useState({
@@ -165,6 +166,13 @@ export default function PlayerList() {
         <div className="flex justify-between items-center text-sm text-gray-500">
           <p>Showing {players.length} players in standard mode with full CRUD functionality</p>
           <p>Sort and filter operations are available</p>
+        </div>
+      )}
+
+      {/* Show sort duration if available and not in infinite mode */}
+      {!isInfiniteMode && lastSortDuration !== null && (
+        <div className="text-right text-xs text-blue-600 mb-2">
+          Sort operation completed in <span className="font-semibold">{lastSortDuration} ms</span>
         </div>
       )}
 

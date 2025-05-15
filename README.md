@@ -27,3 +27,44 @@ You can check out the [create-t3-app GitHub repository](https://github.com/t3-os
 ## How do I deploy this?
 
 Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+
+## Performance Optimization
+
+The application includes advanced performance optimizations for handling large datasets:
+
+### Database Optimization Features
+
+- MongoDB database indexing for fast query response
+- Optimized MongoDB aggregation pipelines for complex statistics
+- Multi-threading for data generation to improve processing speed
+- Compound indexes for common query patterns
+- Query execution time monitoring
+
+### Running the Performance Test Suite
+
+1. **Populate database with large datasets:**
+
+```bash
+cd backend
+npm run generate-data
+```
+
+This will populate the database with:
+- 10,000 player records
+- 1,000 tournament records
+- 100,000 match records
+
+2. **Start the server:**
+
+```bash
+npm run start
+```
+
+3. **Run JMeter performance tests:**
+
+```bash
+# Open JMeter and load the test plan
+jmeter -t backend/performance-test-plan.jmx
+```
+
+See the `backend/README-performance.md` file for detailed information about the performance optimization features and testing methodology.

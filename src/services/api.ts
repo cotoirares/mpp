@@ -1,6 +1,8 @@
 import { type Player, type PlayerFilter } from '~/types/player';
+import { type Tournament, type TournamentFilter } from '~/types/tournament';
+import { type Match, type MatchFilter } from '~/types/match';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'http://localhost:3100/api';
 
 export type GetPlayersParams = {
   cursor?: number;
@@ -102,6 +104,261 @@ export const api = {
       return await response.json();
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to delete player');
+    }
+  },
+
+  // TOURNAMENT API
+  
+  // Get all tournaments with optional filtering
+  async getTournaments(filters: TournamentFilter = {}): Promise<Tournament[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+
+      const response = await fetch(`${API_URL}/tournaments?${queryParams.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tournaments');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching tournaments:', error);
+      throw error;
+    }
+  },
+  
+  // Get tournament by ID
+  async getTournamentById(id: string): Promise<Tournament> {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tournament');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch tournament');
+    }
+  },
+  
+  // Create a new tournament
+  async createTournament(tournament: Omit<Tournament, 'id'>) {
+    try {
+      const response = await fetch(`${API_URL}/tournaments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tournament),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create tournament');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to create tournament');
+    }
+  },
+  
+  // Update a tournament
+  async updateTournament(id: string, tournament: Partial<Tournament>) {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tournament),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update tournament');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to update tournament');
+    }
+  },
+  
+  // Delete a tournament
+  async deleteTournament(id: string) {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete tournament');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to delete tournament');
+    }
+  },
+  
+  // Add a player to a tournament
+  async addPlayerToTournament(tournamentId: string, playerId: string) {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${tournamentId}/players/${playerId}`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to add player to tournament');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to add player to tournament');
+    }
+  },
+  
+  // Remove a player from a tournament
+  async removePlayerFromTournament(tournamentId: string, playerId: string) {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${tournamentId}/players/${playerId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to remove player from tournament');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to remove player from tournament');
+    }
+  },
+  
+  // MATCH API
+  
+  // Get all matches with optional filtering
+  async getMatches(filters: MatchFilter = {}): Promise<Match[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+
+      const response = await fetch(`${API_URL}/matches?${queryParams.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch matches');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      throw error;
+    }
+  },
+  
+  // Get match by ID
+  async getMatchById(id: string): Promise<Match> {
+    try {
+      const response = await fetch(`${API_URL}/matches/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch match');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch match');
+    }
+  },
+  
+  // Create a new match
+  async createMatch(match: Omit<Match, 'id'>) {
+    try {
+      const response = await fetch(`${API_URL}/matches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(match),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create match');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to create match');
+    }
+  },
+  
+  // Update a match
+  async updateMatch(id: string, match: Partial<Match>) {
+    try {
+      const response = await fetch(`${API_URL}/matches/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(match),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update match');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to update match');
+    }
+  },
+  
+  // Delete a match
+  async deleteMatch(id: string) {
+    try {
+      const response = await fetch(`${API_URL}/matches/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete match');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to delete match');
+    }
+  },
+  
+  // Get matches by tournament
+  async getMatchesByTournament(tournamentId: string): Promise<Match[]> {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${tournamentId}/matches`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tournament matches');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch tournament matches');
+    }
+  },
+  
+  // Get matches by player
+  async getMatchesByPlayer(playerId: string): Promise<Match[]> {
+    try {
+      const response = await fetch(`${API_URL}/players/${playerId}/matches`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch player matches');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch player matches');
+    }
+  },
+  
+  // Update match score and stats
+  async updateMatchScore(id: string, data: { score: string, winner: string, duration: number, stats: Match['stats'] }) {
+    try {
+      const response = await fetch(`${API_URL}/matches/${id}/score`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update match score');
+      }
+      return await response.json();
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to update match score');
     }
   },
 
@@ -208,11 +465,11 @@ export const api = {
     try {
       const response = await fetch(`${API_URL}/status`);
       if (!response.ok) {
-        throw new Error('Failed to get server status');
+        throw new Error('Failed to fetch server status');
       }
       return await response.json();
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to get server status');
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch server status');
     }
   }
 }; 

@@ -23,6 +23,7 @@ export type PlayerContextType = {
     key?: keyof Player;
     sortOrder?: 'asc' | 'desc';
   };
+  lastSortDuration: number | null; // ms
 };
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -39,6 +40,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [cursor, setCursor] = useState<number>(0);
   const [hasMore, setHasMore] = useState(false);
   const [isInfiniteMode, setIsInfiniteMode] = useState(false);
+  const [lastSortDuration, setLastSortDuration] = useState<number | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -100,11 +102,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (isInfiniteMode) return; // Disable sorting in infinite mode
     const newOrder = currentSort.key === key && currentSort.sortOrder === 'asc' ? 'desc' : 'asc';
     setCurrentSort({ key, sortOrder: newOrder });
+    const start = performance.now();
     await fetchPlayers({
       sortBy: key,
       sortOrder: newOrder,
       reset: true
     });
+    const end = performance.now();
+    setLastSortDuration(Math.round(end - start));
   };
 
   const filterPlayers = async (criteria: PlayerFilter) => {
@@ -186,7 +191,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         hasMore,
         isInfiniteMode,
         toggleInfiniteMode,
-        currentSort
+        currentSort,
+        lastSortDuration
       }}
     >
       {children}
