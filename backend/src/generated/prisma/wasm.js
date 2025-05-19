@@ -20,12 +20,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.7.0
- * Query Engine version: 3cff47a7f5d65c3ea74883f1d736e41d68ce91ed
+ * Prisma Client JS version: 6.8.2
+ * Query Engine version: 2060c79ba17c6bb9f5823312b6f6b7f4a845738e
  */
 Prisma.prismaVersion = {
-  client: "6.7.0",
-  engine: "3cff47a7f5d65c3ea74883f1d736e41d68ce91ed"
+  client: "6.8.2",
+  engine: "2060c79ba17c6bb9f5823312b6f6b7f4a845738e"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -120,73 +120,9 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
-exports.Prisma.UserScalarFieldEnum = {
-  id: 'id',
-  email: 'email',
-  password: 'password',
-  role: 'role',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  isMonitored: 'isMonitored'
-};
-
-exports.Prisma.PlayerScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  ranking: 'ranking',
-  country: 'country',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.MatchScalarFieldEnum = {
-  id: 'id',
-  date: 'date',
-  score: 'score',
-  tournament: 'tournament',
-  player1Id: 'player1Id',
-  player2Id: 'player2Id',
-  createdById: 'createdById',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.UserActivityLogScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  action: 'action',
-  entity: 'entity',
-  entityId: 'entityId',
-  timestamp: 'timestamp'
-};
-
-exports.Prisma.MonitoredUserScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  reason: 'reason',
-  detectedAt: 'detectedAt'
-};
-
-exports.Prisma.SortOrder = {
-  asc: 'asc',
-  desc: 'desc'
-};
-
-exports.Prisma.QueryMode = {
-  default: 'default',
-  insensitive: 'insensitive'
-};
-exports.UserRole = exports.$Enums.UserRole = {
-  USER: 'USER',
-  ADMIN: 'ADMIN'
-};
 
 exports.Prisma.ModelName = {
-  User: 'User',
-  Player: 'Player',
-  Match: 'Match',
-  UserActivityLog: 'UserActivityLog',
-  MonitoredUser: 'MonitoredUser'
+
 };
 
 /**

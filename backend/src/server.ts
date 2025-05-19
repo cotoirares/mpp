@@ -14,6 +14,7 @@ import { TournamentService } from './services/tournament.service';
 import { MatchService } from './services/match.service';
 import { StatsService } from './services/stats.service';
 import statsRoutes from './routes/stats.routes';
+import authRoutes from './routes/auth.routes';
 
 const app = express();
 const server = http.createServer(app);
@@ -598,6 +599,9 @@ app.put('/api/matches/:id/score', async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+
+// Use the auth routes
+app.use('/api/auth', authRoutes);
 
 // Use the stats routes
 app.use('/api/stats', statsRoutes);

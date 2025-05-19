@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { usePlayerContext } from "~/context/PlayerContext";
-import type { Player, PlayerFilter } from "~/types/player";
-import PlayerDetails from "~/components/PlayerDetails";
-import { BarChart, LineChart, PieChart } from "~/components/Charts";
-import { websocket } from "~/services/websocket";
+import { usePlayerContext } from "@/context/PlayerContext";
+import type { Player, PlayerFilter } from "@/types/player";
+import PlayerDetails from "@/components/PlayerDetails";
+import { BarChart, LineChart, PieChart } from "@/components/Charts";
+import { websocket } from "@/services/websocket";
 import toast from "react-hot-toast";
 
 export default function PlayerList() {

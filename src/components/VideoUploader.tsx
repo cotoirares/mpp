@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { api } from "~/services/api";
+import { api } from "@/services/api";
 import toast from "react-hot-toast";
 
 // API base URL for backend server

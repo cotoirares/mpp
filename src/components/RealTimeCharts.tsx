@@ -16,7 +16,7 @@ import {
   Line,
   LineChart,
 } from "recharts";
-import { websocket } from "~/services/websocket";
+import { websocket } from "@/services/websocket";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#FF5733", "#33FF57", "#3357FF", "#FF33A8", "#A833FF"];
 

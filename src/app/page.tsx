@@ -1,53 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { PlayerProvider } from "~/context/PlayerContext";
-import PlayerList from "~/components/PlayerList";
-import PlayerForm from "~/components/PlayerForm";
-import RealTimeCharts from "~/components/RealTimeCharts";
+import { useState, useEffect } from "react";
+import { PlayerProvider } from "@/context/PlayerContext";
+import PlayerList from "@/components/PlayerList";
+import PlayerForm from "@/components/PlayerForm";
+import RealTimeCharts from "@/components/RealTimeCharts";
+import { useSession } from "@/context/SessionContext";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const [isAddingPlayer, setIsAddingPlayer] = useState(false);
-  const [showRealTimeStats, setShowRealTimeStats] = useState(true);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const { user, isLoading } = useSession();
+  const router = useRouter();
 
+  // Force redirect to login if not authenticated
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (!isLoading && !user) {
+        console.log("User not authenticated, redirecting to login");
+        window.location.href = "/login"; // Updated path
+      }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [user, isLoading]);
+
+  // While checking authentication status, show loading
+  if (isLoading || !user) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen">
+        <div className="mb-4 text-xl font-semibold">Checking authentication...</div>
+        <div className="text-sm text-gray-500">Redirecting to login if not authenticated</div>
+      </div>
+    );
+  }
+
+  // Only render the main content if authenticated
   return (
     <PlayerProvider>
       <main className="container mx-auto px-4 py-8">
-        <h1 className="mb-8 text-4xl font-bold">Tennis Players Management</h1>
-        
-        {/* Toggle for real-time stats */}
-        <div className="mb-4 flex items-center">
-          <label className="mr-2 flex items-center">
-            <input
-              type="checkbox"
-              checked={showRealTimeStats}
-              onChange={() => setShowRealTimeStats(!showRealTimeStats)}
-              className="mr-2 h-4 w-4"
-            />
-            <span>Show Real-Time Statistics</span>
-          </label>
-        </div>
-        
-        {/* Real-time charts */}
-        {showRealTimeStats && <RealTimeCharts />}
-        
-        <div className="mb-6 flex justify-end">
-          <button
-            onClick={() => setIsAddingPlayer(true)}
-            className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
-          >
-            Add New Player
-          </button>
-        </div>
-
-        {isAddingPlayer && (
-          <div className="mb-8">
-            <PlayerForm onClose={() => setIsAddingPlayer(false)} />
+        <h1 className="text-3xl font-bold mb-8">Tennis Player Management</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            {isFormVisible ? (
+              <PlayerForm onClose={() => setIsFormVisible(false)} />
+            ) : (
+              <button
+                onClick={() => setIsFormVisible(true)}
+                className="mb-4 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+              >
+                Add New Player
+              </button>
+            )}
+            <PlayerList />
           </div>
-        )}
-
-        <PlayerList />
+          <div>
+            <RealTimeCharts />
+          </div>
+        </div>
       </main>
     </PlayerProvider>
   );
 }
+

@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { PlayerProvider, usePlayerContext } from "../PlayerContext";
-import type { Player } from "~/types/player";
+import type { Player } from "@/types/player";
 import type { PlayerContextType } from "../PlayerContext";
 
 // Mock the initialPlayers to be empty

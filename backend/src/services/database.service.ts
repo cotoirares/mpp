@@ -20,7 +20,11 @@ export class DatabaseService {
 
     try {
       const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tennisApp';
-      await mongoose.connect(MONGODB_URI);
+      await mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        family: 4
+      });
       this.isConnected = true;
       console.log('Connected to MongoDB');
     } catch (error) {

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { type Player, type PlayerFilter } from "~/types/player";
-import { api } from "~/services/api";
+import { type Player, type PlayerFilter } from "@/types/player";
+import { api } from "@/services/api";
 import toast from "react-hot-toast";
 
 export type PlayerContextType = {

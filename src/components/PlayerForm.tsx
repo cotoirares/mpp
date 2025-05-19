@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { usePlayerContext } from "~/context/PlayerContext";
-import type { Player } from "~/types/player";
+import { usePlayerContext } from "@/context/PlayerContext";
+import type { Player } from "@/types/player";
 import toast from "react-hot-toast";
 
 type PlayerFormProps = {
