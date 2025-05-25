@@ -2,7 +2,7 @@ import { type Player, type PlayerFilter } from '~/types/player';
 import { type Tournament, type TournamentFilter } from '~/types/tournament';
 import { type Match, type MatchFilter } from '~/types/match';
 
-const API_URL = 'http://localhost:3100/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tennis-app-backend-1o0q.onrender.com/api';
 
 export type GetPlayersParams = {
   cursor?: number;
