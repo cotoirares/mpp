@@ -226,10 +226,17 @@ app.get('/api/players', async (req, res) => {
     // Get players from database
     const players = await db.collection('players').find(mongoFilters).toArray();
     
+    // Transform _id to id for frontend compatibility
+    const transformedPlayers = players.map(player => ({
+      ...player,
+      id: player._id.toString(),
+      _id: undefined
+    }));
+    
     // Apply sorting if specified
     if (sortBy) {
       const order = sortOrder === 'desc' ? -1 : 1;
-      players.sort((a, b) => {
+      transformedPlayers.sort((a, b) => {
         const aValue = a[sortBy];
         const bValue = b[sortBy];
         if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -242,8 +249,8 @@ app.get('/api/players', async (req, res) => {
     // Apply pagination
     const cursorNum = cursor ? parseInt(cursor) : 0;
     const limitNum = limit ? parseInt(limit) : 20;
-    const paginatedPlayers = players.slice(cursorNum, cursorNum + limitNum);
-    const hasMore = cursorNum + limitNum < players.length;
+    const paginatedPlayers = transformedPlayers.slice(cursorNum, cursorNum + limitNum);
+    const hasMore = cursorNum + limitNum < transformedPlayers.length;
     const nextCursor = hasMore ? cursorNum + limitNum : null;
 
     res.json({
@@ -274,7 +281,14 @@ app.get('/api/players/:id', async (req, res) => {
       return res.status(404).json({ message: 'Player not found' });
     }
     
-    res.json(player);
+    // Transform _id to id for frontend compatibility
+    const transformedPlayer = {
+      ...player,
+      id: player._id.toString(),
+      _id: undefined
+    };
+    
+    res.json(transformedPlayer);
   } catch (error) {
     console.error('Error fetching player:', error);
     res.status(500).json({ message: 'Internal server error while fetching player' });
@@ -305,12 +319,75 @@ app.post('/api/players', async (req, res) => {
     };
 
     const result = await db.collection('players').insertOne(player);
-    player._id = result.insertedId;
+    const newPlayer = await db.collection('players').findOne({ _id: result.insertedId });
     
-    res.status(201).json(player);
+    // Transform _id to id for frontend compatibility
+    const transformedPlayer = {
+      ...newPlayer,
+      id: newPlayer._id.toString(),
+      _id: undefined
+    };
+    
+    res.status(201).json(transformedPlayer);
   } catch (error) {
     console.error('Error creating player:', error);
     res.status(500).json({ message: 'Internal server error while creating player' });
+  }
+});
+
+app.put('/api/players/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    await db.collection('players').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { ...req.body, updatedAt: new Date() } }
+    );
+    
+    const updatedPlayer = await db.collection('players').findOne({ _id: new ObjectId(req.params.id) });
+    
+    if (!updatedPlayer) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    
+    // Transform _id to id for frontend compatibility
+    const transformedPlayer = {
+      ...updatedPlayer,
+      id: updatedPlayer._id.toString(),
+      _id: undefined
+    };
+    
+    res.json(transformedPlayer);
+  } catch (error) {
+    console.error('Error updating player:', error);
+    res.status(500).json({ message: 'Internal server error while updating player' });
+  }
+});
+
+app.delete('/api/players/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    const result = await db.collection('players').deleteOne({ _id: new ObjectId(req.params.id) });
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    
+    res.json({ message: 'Player deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting player:', error);
+    res.status(500).json({ message: 'Internal server error while deleting player' });
   }
 });
 
