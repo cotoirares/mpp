@@ -503,6 +503,9 @@ app.delete('/api/matches/:id', async (req, res) => {
 // Stats routes
 app.use('/api/stats', statsRoutes);
 
+// Auth routes
+app.use('/api/auth', authRoutes);
+
 // Server startup
 const PORT = process.env.PORT || 3100;
 server.listen(PORT, () => {

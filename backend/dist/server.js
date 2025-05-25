@@ -62,7 +62,7 @@ const upload = (0, multer_1.default)({
 });
 // Middleware
 app.use((0, cors_1.default)({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3100'],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3100', 'https://mpp-nine-smoky.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -369,25 +369,7 @@ app.post('/api/tournaments', (req, res) => __awaiter(void 0, void 0, void 0, fun
 }));
 app.get('/api/tournaments', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { name, location, category, surface, startDate, endDate, minPrize, maxPrize } = req.query;
-        const filters = {};
-        if (name)
-            filters.name = name;
-        if (location)
-            filters.location = location;
-        if (category)
-            filters.category = category;
-        if (surface)
-            filters.surface = surface;
-        if (startDate)
-            filters.startDate = new Date(startDate);
-        if (endDate)
-            filters.endDate = new Date(endDate);
-        if (minPrize)
-            filters.minPrize = parseInt(minPrize);
-        if (maxPrize)
-            filters.maxPrize = parseInt(maxPrize);
-        const tournaments = yield tournamentService.getAllTournaments(filters);
+        const tournaments = yield tournamentService.getAllTournaments();
         res.json(tournaments);
     }
     catch (error) {
@@ -404,6 +386,7 @@ app.get('/api/tournaments/:id', (req, res) => __awaiter(void 0, void 0, void 0, 
         res.json(tournament);
     }
     catch (error) {
+        console.error('Error fetching tournament:', error);
         res.status(500).json({ message: error.message });
     }
 }));
@@ -431,34 +414,10 @@ app.delete('/api/tournaments/:id', (req, res) => __awaiter(void 0, void 0, void 
         res.status(500).json({ message: error.message });
     }
 }));
-app.post('/api/tournaments/:id/players/:playerId', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const tournament = yield tournamentService.addPlayerToTournament(req.params.id, req.params.playerId);
-        if (!tournament) {
-            return res.status(404).json({ message: 'Tournament not found' });
-        }
-        res.json(tournament);
-    }
-    catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-}));
-app.delete('/api/tournaments/:id/players/:playerId', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const tournament = yield tournamentService.removePlayerFromTournament(req.params.id, req.params.playerId);
-        if (!tournament) {
-            return res.status(404).json({ message: 'Tournament not found' });
-        }
-        res.json(tournament);
-    }
-    catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-}));
 // Match routes
 app.post('/api/matches', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const requiredFields = ['tournament', 'player1', 'player2', 'round', 'date'];
+        const requiredFields = ['player1Id', 'player2Id', 'tournamentId', 'date'];
         const missingFields = requiredFields.filter(field => !(field in req.body));
         if (missingFields.length > 0) {
             return res.status(400).json({
@@ -474,25 +433,7 @@ app.post('/api/matches', (req, res) => __awaiter(void 0, void 0, void 0, functio
 }));
 app.get('/api/matches', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { tournament, player, round, winner, startDate, endDate, minDuration, maxDuration } = req.query;
-        const filters = {};
-        if (tournament)
-            filters.tournament = tournament;
-        if (player)
-            filters.player = player;
-        if (round)
-            filters.round = round;
-        if (winner)
-            filters.winner = winner;
-        if (startDate)
-            filters.startDate = new Date(startDate);
-        if (endDate)
-            filters.endDate = new Date(endDate);
-        if (minDuration)
-            filters.minDuration = parseInt(minDuration);
-        if (maxDuration)
-            filters.maxDuration = parseInt(maxDuration);
-        const matches = yield matchService.getAllMatches(filters);
+        const matches = yield matchService.getAllMatches();
         res.json(matches);
     }
     catch (error) {
@@ -509,6 +450,7 @@ app.get('/api/matches/:id', (req, res) => __awaiter(void 0, void 0, void 0, func
         res.json(match);
     }
     catch (error) {
+        console.error('Error fetching match:', error);
         res.status(500).json({ message: error.message });
     }
 }));
@@ -536,59 +478,12 @@ app.delete('/api/matches/:id', (req, res) => __awaiter(void 0, void 0, void 0, f
         res.status(500).json({ message: error.message });
     }
 }));
-app.get('/api/tournaments/:id/matches', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const matches = yield matchService.getMatchesByTournament(req.params.id);
-        res.json(matches);
-    }
-    catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-}));
-app.get('/api/players/:id/matches', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const matches = yield matchService.getMatchesByPlayer(req.params.id);
-        res.json(matches);
-    }
-    catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-}));
-app.put('/api/matches/:id/score', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { score, winner, duration, stats } = req.body;
-        if (!score || !winner || !duration || !stats) {
-            return res.status(400).json({
-                message: 'Missing required fields: score, winner, duration, or stats'
-            });
-        }
-        const match = yield matchService.updateMatchScore(req.params.id, score, winner, duration, stats);
-        if (!match) {
-            return res.status(404).json({ message: 'Match not found' });
-        }
-        res.json(match);
-    }
-    catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-}));
-// Use the auth routes
-app.use('/api/auth', auth_routes_1.default);
-// Use the stats routes
+// Stats routes
 app.use('/api/stats', stats_routes_1.default);
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
-});
-// Start server
+// Auth routes
+app.use('/api/auth', auth_routes_1.default);
+// Server startup
 const PORT = process.env.PORT || 3100;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
-// Handle shutdown gracefully
-process.on('SIGINT', () => __awaiter(void 0, void 0, void 0, function* () {
-    console.log('Shutting down server...');
-    yield databaseService.disconnect();
-    process.exit(0);
-}));
