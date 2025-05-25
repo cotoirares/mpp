@@ -501,16 +501,10 @@ app.delete('/api/matches/:id', async (req, res) => {
 });
 
 // Stats routes
-app.get('/api/stats', async (req, res) => {
-  try {
-    const stats = await statsService.getStats();
-    res.json(stats);
-  } catch (error: any) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
+app.use('/api/stats', statsRoutes);
 
-server.listen(3000, () => {
-  console.log('Server is running on port 3000');
+// Server startup
+const PORT = process.env.PORT || 3100;
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
