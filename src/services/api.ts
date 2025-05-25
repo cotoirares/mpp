@@ -4,6 +4,8 @@ import { type Match, type MatchFilter } from '~/types/match';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tennis-app-backend-1o0q.onrender.com/api';
 
+console.log('API_URL configured as:', API_URL);
+
 export type GetPlayersParams = {
   cursor?: number;
   limit?: number;
@@ -42,11 +44,17 @@ export const api = {
         queryParams.append('infinite', 'true');
       }
 
-      const response = await fetch(`${API_URL}/players?${queryParams.toString()}`);
+      const url = `${API_URL}/players?${queryParams.toString()}`;
+      console.log('Fetching players from:', url);
+      
+      const response = await fetch(url);
+      console.log('Response status:', response.status, response.statusText);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch players');
       }
       const data = await response.json();
+      console.log('Players data received:', data);
       return data;
     } catch (error) {
       console.error('Error fetching players:', error);
