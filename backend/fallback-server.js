@@ -202,6 +202,118 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Players endpoints
+app.get('/api/players', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { cursor, limit, sortBy, sortOrder, filters } = req.query;
+    
+    // Parse filters if they exist
+    let mongoFilters = {};
+    if (filters) {
+      try {
+        mongoFilters = JSON.parse(filters);
+      } catch (e) {
+        // Ignore invalid filters
+      }
+    }
+    
+    // Get players from database
+    const players = await db.collection('players').find(mongoFilters).toArray();
+    
+    // Apply sorting if specified
+    if (sortBy) {
+      const order = sortOrder === 'desc' ? -1 : 1;
+      players.sort((a, b) => {
+        const aValue = a[sortBy];
+        const bValue = b[sortBy];
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return aValue.localeCompare(bValue) * order;
+        }
+        return ((aValue || 0) - (bValue || 0)) * order;
+      });
+    }
+
+    // Apply pagination
+    const cursorNum = cursor ? parseInt(cursor) : 0;
+    const limitNum = limit ? parseInt(limit) : 20;
+    const paginatedPlayers = players.slice(cursorNum, cursorNum + limitNum);
+    const hasMore = cursorNum + limitNum < players.length;
+    const nextCursor = hasMore ? cursorNum + limitNum : null;
+
+    res.json({
+      players: paginatedPlayers,
+      nextCursor,
+      hasMore
+    });
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({
+      message: 'Internal server error while fetching players'
+    });
+  }
+});
+
+app.get('/api/players/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    const player = await db.collection('players').findOne({ _id: new ObjectId(req.params.id) });
+    
+    if (!player) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    
+    res.json(player);
+  } catch (error) {
+    console.error('Error fetching player:', error);
+    res.status(500).json({ message: 'Internal server error while fetching player' });
+  }
+});
+
+app.post('/api/players', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const requiredFields = ['name', 'age', 'rank', 'country', 'grandSlams', 'hand', 'height'];
+    const missingFields = requiredFields.filter(field => !(field in req.body));
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        message: `Missing required fields: ${missingFields.join(', ')}` 
+      });
+    }
+
+    const player = {
+      ...req.body,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await db.collection('players').insertOne(player);
+    player._id = result.insertedId;
+    
+    res.status(201).json(player);
+  } catch (error) {
+    console.error('Error creating player:', error);
+    res.status(500).json({ message: 'Internal server error while creating player' });
+  }
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
