@@ -33,16 +33,54 @@ const handler = (req: NextRequest) =>
 export { handler as GET, handler as POST };
 */
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://your-backend-url.onrender.com';
+
 export async function GET(req: NextRequest) {
-  return NextResponse.json({
-    message: "tRPC API endpoint - Please deploy backend separately",
-    status: "not implemented"
-  }, { status: 501 });
+  try {
+    const url = new URL(req.url);
+    const response = await fetch(`${API_URL}/api/trpc${url.search}`, {
+      method: 'GET',
+      headers: {
+        ...Object.fromEntries(req.headers),
+      },
+    });
+    
+    const data = await response.json();
+    return NextResponse.json(data, {
+      status: response.status,
+    });
+  } catch (error) {
+    console.error("tRPC error:", error);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
-  return NextResponse.json({
-    message: "tRPC API endpoint - Please deploy backend separately",
-    status: "not implemented"
-  }, { status: 501 });
+  try {
+    const body = await req.json();
+    const url = new URL(req.url);
+    
+    const response = await fetch(`${API_URL}/api/trpc${url.search}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...Object.fromEntries(req.headers),
+      },
+      body: JSON.stringify(body),
+    });
+    
+    const data = await response.json();
+    return NextResponse.json(data, {
+      status: response.status,
+    });
+  } catch (error) {
+    console.error("tRPC error:", error);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
