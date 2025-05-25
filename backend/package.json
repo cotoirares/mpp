@@ -4,13 +4,14 @@
   "description": "Tennis App Backend",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "node fix-debug.js && node dist/server.js",
     "dev": "ts-node-dev src/server.ts",
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch",
     "generate-data": "tsc && node dist/scripts/generateLargeDataset.js",
-    "create-test-users": "ts-node src/scripts/createTestUser.ts"
+    "create-test-users": "ts-node src/scripts/createTestUser.ts",
+    "postinstall": "node -e \"try { require('fs').copyFileSync('common.js', 'node_modules/debug/src/common.js') } catch (e) { console.log('Could not copy common.js: ' + e.message) }\""
   },
   "keywords": [],
   "author": "",
@@ -54,5 +55,11 @@
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.0.3"
+  },
+  "overrides": {
+    "debug": "^4.3.4"
+  },
+  "resolutions": {
+    "debug": "^4.3.4"
   }
 }
