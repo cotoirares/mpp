@@ -1,4 +1,4 @@
-import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { NextResponse } from "next/server";
 import { type NextRequest } from "next/server";
 
 // TODO: Update the following imports to the correct paths if these files exist
@@ -32,3 +32,17 @@ const handler = (req: NextRequest) =>
 
 export { handler as GET, handler as POST };
 */
+
+export async function GET(req: NextRequest) {
+  return NextResponse.json({
+    message: "tRPC API endpoint - Please deploy backend separately",
+    status: "not implemented"
+  }, { status: 501 });
+}
+
+export async function POST(req: NextRequest) {
+  return NextResponse.json({
+    message: "tRPC API endpoint - Please deploy backend separately",
+    status: "not implemented"
+  }, { status: 501 });
+}
