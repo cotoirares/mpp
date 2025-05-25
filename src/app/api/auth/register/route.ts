@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tennis-app-backend-1o0q.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tennis-app-backend-1o0q.onrender.com/api';
 
 export async function POST(request: Request) {
   try {
