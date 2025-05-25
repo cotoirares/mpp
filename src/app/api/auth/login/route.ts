@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import { User } from "@/backend/models/user.model";
-import { UserRole } from "@/types/user";
-import connectDB from "@/lib/mongodb";
+import bcrypt from "bcryptjs";
+import { getCollection } from "@/lib/mongodb";
+
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN'
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -18,11 +22,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Connect to MongoDB
-    await connectDB();
+    // Get users collection
+    const usersCollection = await getCollection('users');
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await usersCollection.findOne({ email });
     if (!user) {
       return NextResponse.json(
         { message: "Invalid credentials" },
@@ -31,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     // Check password
-    const isValid = await user.comparePassword(password);
+    const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return NextResponse.json(
         { message: "Invalid credentials" },
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
 
     // Generate token
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
+      { userId: user._id.toString(), email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: "24h" }
     );

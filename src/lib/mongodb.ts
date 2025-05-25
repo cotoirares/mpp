@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import { MongoClient } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tennisApp';
 
@@ -6,44 +6,36 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env');
 }
 
-interface MongooseCache {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
+interface MongoConnection {
+  client: MongoClient | null;
+  promise: Promise<MongoClient> | null;
 }
 
-declare global {
-  var mongoose: MongooseCache | undefined;
-}
+let cached: MongoConnection = { client: null, promise: null };
 
-let cached: MongooseCache = global.mongoose || { conn: null, promise: null };
-
-if (!global.mongoose) {
-  global.mongoose = cached;
-}
-
-async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
+export async function connectToDatabase() {
+  if (cached.client) {
+    return cached.client;
   }
 
   if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
+    cached.promise = MongoClient.connect(MONGODB_URI);
   }
 
   try {
-    cached.conn = await cached.promise;
+    cached.client = await cached.promise;
   } catch (e) {
     cached.promise = null;
     throw e;
   }
 
-  return cached.conn;
+  return cached.client;
 }
 
-export default connectDB; 
+export async function getCollection(name: string) {
+  const client = await connectToDatabase();
+  const db = client.db();
+  return db.collection(name);
+}
+
+export default connectToDatabase; 

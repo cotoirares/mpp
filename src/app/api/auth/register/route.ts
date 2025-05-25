@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { User } from "@/backend/models/user.model";
-import { UserRole } from "@/types/user";
-import connectDB from "@/lib/mongodb";
+import bcrypt from "bcryptjs";
+import { getCollection } from "@/lib/mongodb";
+
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN'
+}
 
 export async function POST(request: Request) {
   try {
@@ -14,11 +18,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Connect to MongoDB
-    await connectDB();
+    // Get users collection
+    const usersCollection = await getCollection('users');
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await usersCollection.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
         { message: "Email already registered" },
@@ -26,14 +30,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create new user
-    const user = new User({
-      email,
-      password,
-      role: UserRole.USER
-    });
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    await user.save();
+    // Create new user
+    const result = await usersCollection.insertOne({
+      email,
+      password: hashedPassword,
+      role: UserRole.USER,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     return NextResponse.json(
       { message: "User registered successfully" },

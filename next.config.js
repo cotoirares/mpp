@@ -3,6 +3,11 @@
  * for Docker builds.
  */
 import "./src/env.js";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -20,6 +25,19 @@ const nextConfig = {
     if (isServer) {
       config.externals = [...config.externals, 'prisma', '@prisma/client'];
     }
+    
+    // Handle the debug module issue
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      './debug': path.resolve(__dirname, 'debug-shim.js')
+    };
+    
+    // Completely exclude the backend directory
+    config.module.rules.push({
+      test: /backend\//,
+      loader: 'ignore-loader'
+    });
+    
     return config;
   }
 };
