@@ -1,147 +1,76 @@
 /**
- * Start script that tries to run the real server first, then fallbacks
+ * Start script that uses the fallback server directly
  */
 
-console.log('Starting Tennis App Backend...');
+console.log('Starting Tennis App Backend in fallback mode...');
 
-// First, try to run the compiled TypeScript server
+// Use the fallback server directly since it has all the endpoints we need
 try {
-  console.log('Attempting to start the main TypeScript server...');
-  require('./dist/server.js');
+  console.log('Starting fallback Express server with MongoDB...');
+  require('./fallback-server.js');
 } catch (error) {
-  console.error('Failed to start main server:', error instanceof Error ? error.message : String(error));
-  console.log('Trying fallback Express server...');
+  console.error('Failed to start fallback server:', error instanceof Error ? error.message : String(error));
+  console.log('Starting minimal HTTP server as last resort...');
   
-  try {
-    // Try to run the fallback server
-    require('./fallback-server.js');
-  } catch (error2) {
-    console.error('Failed to start fallback server:', error2 instanceof Error ? error2.message : String(error2));
-    console.log('Starting minimal HTTP server as last resort...');
+  // If even the fallback fails, create a minimal HTTP server
+  const http = require('http');
+  const url = require('url');
+  
+  const server = http.createServer((req, res) => {
+    // Parse URL and method
+    const parsedUrl = url.parse(req.url || '', true);
+    const path = parsedUrl.pathname;
+    const method = req.method;
     
-    // If even the fallback fails, create a minimal HTTP server
-    const http = require('http');
-    const url = require('url');
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Content-Type', 'application/json');
     
-    const server = http.createServer((req, res) => {
-      // Parse URL and method
-      const parsedUrl = url.parse(req.url || '', true);
-      const path = parsedUrl.pathname;
-      const method = req.method;
-      
-      // Set CORS headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.setHeader('Content-Type', 'application/json');
-      
-      // Handle OPTIONS requests
-      if (method === 'OPTIONS') {
+    // Handle OPTIONS requests
+    if (method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    
+    // Handle GET requests
+    if (method === 'GET') {
+      if (path === '/' || path === '/api/status') {
         res.writeHead(200);
-        res.end();
+        res.end(JSON.stringify({
+          message: 'Minimal HTTP server running - fallback failed',
+          status: 'online',
+          timestamp: new Date().toISOString()
+        }));
         return;
       }
       
-      // Handle POST requests with body parsing
-      if (method === 'POST') {
-        let body = '';
-        req.on('data', chunk => {
-          body += chunk.toString();
-        });
-        
-        req.on('end', () => {
-          let requestData = {};
-          try {
-            requestData = JSON.parse(body);
-          } catch (e) {
-            requestData = {};
-          }
-          
-          // Handle auth endpoints
-          if (path === '/api/auth/register') {
-            const email = requestData.email;
-            const password = requestData.password;
-            
-            if (!email || !password) {
-              res.writeHead(400);
-              res.end(JSON.stringify({ 
-                message: 'Email and password are required' 
-              }));
-              return;
-            }
-            
-            res.writeHead(200);
-            res.end(JSON.stringify({ 
-              message: 'User registered successfully (minimal mode)',
-              user: { 
-                email,
-                role: 'USER'
-              }
-            }));
-            return;
-          }
-          
-          if (path === '/api/auth/login') {
-            const email = requestData.email;
-            const password = requestData.password;
-            
-            if (!email || !password) {
-              res.writeHead(400);
-              res.end(JSON.stringify({ 
-                message: 'Email and password are required' 
-              }));
-              return;
-            }
-            
-            res.writeHead(200);
-            res.end(JSON.stringify({ 
-              message: 'Login successful (minimal mode)',
-              user: { 
-                email,
-                role: 'USER'
-              },
-              token: 'minimal-token-' + Date.now()
-            }));
-            return;
-          }
-          
-          // Default response for other POST requests
-          res.writeHead(404);
-          res.end(JSON.stringify({
-            message: 'Endpoint not found',
-            path: path
-          }));
-        });
-        
+      if (path === '/api/players') {
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          players: [],
+          nextCursor: null,
+          hasMore: false,
+          message: 'Fallback server failed - no database connection'
+        }));
         return;
       }
-      
-      // Handle GET requests
-      if (method === 'GET') {
-        if (path === '/' || path === '/api/status') {
-          res.writeHead(200);
-          res.end(JSON.stringify({
-            message: 'Minimal HTTP server running',
-            status: 'online',
-            timestamp: new Date().toISOString()
-          }));
-          return;
-        }
-      }
-      
-      // Default 404 response
-      res.writeHead(404);
-      res.end(JSON.stringify({
-        message: 'Endpoint not found',
-        path: path,
-        method: method
-      }));
-    });
+    }
     
-    const PORT = process.env.PORT || 8000;
-    server.listen(PORT, () => {
-      console.log(`Minimal HTTP server running on port ${PORT}`);
-      console.log('Handling auth endpoints: /api/auth/login, /api/auth/register');
-    });
-  }
+    // Default 404 response
+    res.writeHead(404);
+    res.end(JSON.stringify({
+      message: 'Endpoint not found in minimal mode',
+      path: path,
+      method: method
+    }));
+  });
+  
+  const PORT = process.env.PORT || 8000;
+  server.listen(PORT, () => {
+    console.log(`Minimal HTTP server running on port ${PORT}`);
+    console.log('Fallback server failed to start');
+  });
 } 
