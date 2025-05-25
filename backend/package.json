@@ -37,7 +37,6 @@
     "@types/cors": "^2.8.13",
     "@types/debug": "^4.1.12",
     "@types/express": "^4.17.17",
-    "@types/express-basic-auth": "^1.1.4",
     "@types/jest": "^29.5.0",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/mongodb": "^4.0.6",
