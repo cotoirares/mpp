@@ -391,6 +391,26 @@ app.delete('/api/players/:id', async (req, res) => {
   }
 });
 
+// Redirect routes for frontend compatibility (in case API_URL is misconfigured)
+app.get('/players', (req, res) => {
+  // Redirect to the correct API endpoint
+  const queryString = req.url.split('?')[1] || '';
+  const redirectUrl = `/api/players${queryString ? '?' + queryString : ''}`;
+  res.redirect(301, redirectUrl);
+});
+
+app.post('/players', (req, res) => {
+  res.redirect(307, '/api/players');
+});
+
+app.put('/players/:id', (req, res) => {
+  res.redirect(307, `/api/players/${req.params.id}`);
+});
+
+app.delete('/players/:id', (req, res) => {
+  res.redirect(307, `/api/players/${req.params.id}`);
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
