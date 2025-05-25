@@ -10,6 +10,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        sync: false
+        value: mongodb+srv://cotoirares05:<FwXcaqgu9hdIcVzj>@tennis.z8acxqp.mongodb.net/?retryWrites=true&w=majority&appName=tennis
       - key: JWT_SECRET
-        sync: false 
+        value: your_jwt_secret_here 

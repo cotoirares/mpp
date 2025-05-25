@@ -54,7 +54,7 @@ const upload = multer({
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3100', 'https://tennis-app-vercel.vercel.app'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3100', 'https://mpp-nine-smoky.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -389,23 +389,7 @@ app.post('/api/tournaments', async (req, res) => {
 
 app.get('/api/tournaments', async (req, res) => {
   try {
-    const { 
-      name, location, category, surface, 
-      startDate, endDate, minPrize, maxPrize 
-    } = req.query;
-    
-    const filters: any = {};
-    
-    if (name) filters.name = name as string;
-    if (location) filters.location = location as string;
-    if (category) filters.category = category as string;
-    if (surface) filters.surface = surface as string;
-    if (startDate) filters.startDate = new Date(startDate as string);
-    if (endDate) filters.endDate = new Date(endDate as string);
-    if (minPrize) filters.minPrize = parseInt(minPrize as string);
-    if (maxPrize) filters.maxPrize = parseInt(maxPrize as string);
-    
-    const tournaments = await tournamentService.getAllTournaments(filters);
+    const tournaments = await tournamentService.getAllTournaments();
     res.json(tournaments);
   } catch (error: any) {
     console.error('Error fetching tournaments:', error);
@@ -421,6 +405,7 @@ app.get('/api/tournaments/:id', async (req, res) => {
     }
     res.json(tournament);
   } catch (error: any) {
+    console.error('Error fetching tournament:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -449,34 +434,10 @@ app.delete('/api/tournaments/:id', async (req, res) => {
   }
 });
 
-app.post('/api/tournaments/:id/players/:playerId', async (req, res) => {
-  try {
-    const tournament = await tournamentService.addPlayerToTournament(req.params.id, req.params.playerId);
-    if (!tournament) {
-      return res.status(404).json({ message: 'Tournament not found' });
-    }
-    res.json(tournament);
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-app.delete('/api/tournaments/:id/players/:playerId', async (req, res) => {
-  try {
-    const tournament = await tournamentService.removePlayerFromTournament(req.params.id, req.params.playerId);
-    if (!tournament) {
-      return res.status(404).json({ message: 'Tournament not found' });
-    }
-    res.json(tournament);
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
 // Match routes
 app.post('/api/matches', async (req, res) => {
   try {
-    const requiredFields = ['tournament', 'player1', 'player2', 'round', 'date'];
+    const requiredFields = ['player1Id', 'player2Id', 'tournamentId', 'date'];
     const missingFields = requiredFields.filter(field => !(field in req.body));
     
     if (missingFields.length > 0) {
@@ -494,23 +455,7 @@ app.post('/api/matches', async (req, res) => {
 
 app.get('/api/matches', async (req, res) => {
   try {
-    const { 
-      tournament, player, round, winner,
-      startDate, endDate, minDuration, maxDuration 
-    } = req.query;
-    
-    const filters: any = {};
-    
-    if (tournament) filters.tournament = tournament as string;
-    if (player) filters.player = player as string;
-    if (round) filters.round = round as string;
-    if (winner) filters.winner = winner as string;
-    if (startDate) filters.startDate = new Date(startDate as string);
-    if (endDate) filters.endDate = new Date(endDate as string);
-    if (minDuration) filters.minDuration = parseInt(minDuration as string);
-    if (maxDuration) filters.maxDuration = parseInt(maxDuration as string);
-    
-    const matches = await matchService.getAllMatches(filters);
+    const matches = await matchService.getAllMatches();
     res.json(matches);
   } catch (error: any) {
     console.error('Error fetching matches:', error);
@@ -526,6 +471,7 @@ app.get('/api/matches/:id', async (req, res) => {
     }
     res.json(match);
   } catch (error: any) {
+    console.error('Error fetching match:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -554,73 +500,17 @@ app.delete('/api/matches/:id', async (req, res) => {
   }
 });
 
-app.get('/api/tournaments/:id/matches', async (req, res) => {
+// Stats routes
+app.get('/api/stats', async (req, res) => {
   try {
-    const matches = await matchService.getMatchesByTournament(req.params.id);
-    res.json(matches);
+    const stats = await statsService.getStats();
+    res.json(stats);
   } catch (error: any) {
+    console.error('Error fetching stats:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-app.get('/api/players/:id/matches', async (req, res) => {
-  try {
-    const matches = await matchService.getMatchesByPlayer(req.params.id);
-    res.json(matches);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
-  }
+server.listen(3000, () => {
+  console.log('Server is running on port 3000');
 });
-
-app.put('/api/matches/:id/score', async (req, res) => {
-  try {
-    const { score, winner, duration, stats } = req.body;
-    
-    if (!score || !winner || !duration || !stats) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: score, winner, duration, or stats' 
-      });
-    }
-    
-    const match = await matchService.updateMatchScore(
-      req.params.id,
-      score,
-      winner,
-      duration,
-      stats
-    );
-    
-    if (!match) {
-      return res.status(404).json({ message: 'Match not found' });
-    }
-    
-    res.json(match);
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Use the auth routes
-app.use('/api/auth', authRoutes);
-
-// Use the stats routes
-app.use('/api/stats', statsRoutes);
-
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
-});
-
-// Start server
-const PORT = process.env.PORT || 3100;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-
-// Handle shutdown gracefully
-process.on('SIGINT', async () => {
-  console.log('Shutting down server...');
-  await databaseService.disconnect();
-  process.exit(0);
-}); 

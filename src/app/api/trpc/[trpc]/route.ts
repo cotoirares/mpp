@@ -33,7 +33,7 @@ const handler = (req: NextRequest) =>
 export { handler as GET, handler as POST };
 */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://your-backend-url.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tennis-app-backend-1o0q.onrender.com';
 
 export async function GET(req: NextRequest) {
   try {
