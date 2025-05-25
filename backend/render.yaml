@@ -3,7 +3,7 @@ services:
     name: tennis-app-backend
     env: node
     nodeVersion: 16.x
-    buildCommand: node build.js
+    buildCommand: npm install --production
     startCommand: npm start
     envVars:
       - key: PORT
