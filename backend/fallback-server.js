@@ -15,16 +15,40 @@ let db = null;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tennisApp';
 const JWT_SECRET = process.env.JWT_SECRET || 'tennis123';
 
+// Ensure the MongoDB URI includes the database name
+const getMongoURI = () => {
+  let uri = MONGODB_URI;
+  // If it's a MongoDB Atlas URI and doesn't have a database name, add 'tennisApp'
+  if (uri.includes('mongodb+srv://') && !uri.includes('mongodb.net/tennisApp')) {
+    uri = uri.replace('mongodb.net/', 'mongodb.net/tennisApp');
+  }
+  return uri;
+};
+
 // Connect to MongoDB
 async function connectToDatabase() {
   try {
     console.log('Connecting to MongoDB...');
-    const client = new MongoClient(MONGODB_URI);
+    console.log('MongoDB URI:', getMongoURI().replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Log URI without credentials
+    
+    const client = new MongoClient(getMongoURI(), {
+      retryWrites: true,
+      w: 'majority',
+      authSource: 'admin', // Explicitly set auth source
+      ssl: true,
+      tlsAllowInvalidCertificates: false
+    });
+    
     await client.connect();
+    
+    // Test the connection
+    await client.db().admin().ping();
+    
     db = client.db();
     console.log('Connected to MongoDB successfully');
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error.message);
+    console.error('Full error:', error);
     // Continue without database - will return errors for auth operations
   }
 }
