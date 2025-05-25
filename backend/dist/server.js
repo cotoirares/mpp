@@ -26,6 +26,7 @@ const tournament_service_1 = require("./services/tournament.service");
 const match_service_1 = require("./services/match.service");
 const stats_service_1 = require("./services/stats.service");
 const stats_routes_1 = __importDefault(require("./routes/stats.routes"));
+const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
 // Create uploads directory if it doesn't exist
@@ -571,6 +572,8 @@ app.put('/api/matches/:id/score', (req, res) => __awaiter(void 0, void 0, void 0
         res.status(400).json({ message: error.message });
     }
 }));
+// Use the auth routes
+app.use('/api/auth', auth_routes_1.default);
 // Use the stats routes
 app.use('/api/stats', stats_routes_1.default);
 // Error handling middleware

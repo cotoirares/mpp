@@ -31,7 +31,11 @@ class DatabaseService {
             }
             try {
                 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tennisApp';
-                yield mongoose_1.default.connect(MONGODB_URI);
+                yield mongoose_1.default.connect(MONGODB_URI, {
+                    serverSelectionTimeoutMS: 5000,
+                    socketTimeoutMS: 45000,
+                    family: 4
+                });
                 this.isConnected = true;
                 console.log('Connected to MongoDB');
             }
