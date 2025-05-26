@@ -7,7 +7,7 @@ import Navbar from "../components/Navbar";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/context/SessionContext";
 import { useEffect, useState } from "react";
-import Head from "next/head";
+
 
 // Unprotected routes - no auth needed
 const publicRoutes = ['/login', '/register'];
@@ -56,10 +56,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <Head>
-        <title>tennis player management</title>
-        <meta name="description" content="management of tennis players" />
-      </Head>
+      <head>
+        <title>Tennis Player Management</title>
+        <meta name="description" content="Management of tennis players with 2FA security" />
+      </head>
       <body className="bg-gray-50 min-h-screen font-sans">
         <SessionProvider>
           <LayoutContent>{children}</LayoutContent>

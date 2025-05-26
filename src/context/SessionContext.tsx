@@ -6,12 +6,13 @@ type User = {
   id: string;
   email: string;
   role: string;
+  twoFactorEnabled?: boolean;
 };
 
 type SessionContextType = {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, twoFactorToken?: string) => Promise<any>;
   logout: () => Promise<void>;
   isLoading: boolean;
 };
@@ -19,7 +20,7 @@ type SessionContextType = {
 const SessionContext = createContext<SessionContextType>({
   user: null,
   token: null,
-  login: async () => {},
+  login: async () => ({}),
   logout: async () => {},
   isLoading: true,
 });
@@ -43,13 +44,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, twoFactorToken?: string) => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, twoFactorToken }),
         credentials: "include", // Important: include cookies
       });
       
@@ -59,6 +60,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       
       const data = await res.json();
+      
+      // If 2FA is required, return the response without setting user/token
+      if (data.requiresTwoFactor) {
+        return data;
+      }
+      
       setUser(data.user);
       setToken(data.token);
       

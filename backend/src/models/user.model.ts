@@ -12,6 +12,9 @@ export interface IUser {
   role: UserRole;
   createdAt: Date;
   updatedAt: Date;
+  twoFactorSecret?: string;
+  twoFactorEnabled: boolean;
+  twoFactorBackupCodes?: string[];
 }
 
 const userSchema = new mongoose.Schema<IUser>({
@@ -30,6 +33,18 @@ const userSchema = new mongoose.Schema<IUser>({
     type: String,
     enum: Object.values(UserRole),
     default: UserRole.USER
+  },
+  twoFactorSecret: {
+    type: String,
+    required: false
+  },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorBackupCodes: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true

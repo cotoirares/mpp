@@ -19,6 +19,12 @@ export default function Navbar() {
             {user ? (
               <>
                 <span className="mr-4 text-gray-600">Welcome, {user.email}</span>
+                <Link
+                  href="/settings"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md mr-2"
+                >
+                  Settings
+                </Link>
                 <button
                   onClick={logout}
                   className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"

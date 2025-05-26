@@ -44,20 +44,32 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
 // Login
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { email, password } = req.body;
+        const { email, password, twoFactorToken } = req.body;
         // Validate input
         if (!email || !password) {
             return res.status(400).json({ message: 'Email and password are required' });
         }
-        const { user, token } = yield authService.login(email, password);
+        const result = yield authService.login(email, password, twoFactorToken);
+        if (result.requiresTwoFactor) {
+            return res.json({
+                message: '2FA required',
+                requiresTwoFactor: true,
+                user: {
+                    id: result.user._id.toString(),
+                    email: result.user.email,
+                    role: result.user.role
+                }
+            });
+        }
         res.json({
             message: 'Login successful',
             user: {
-                id: user._id.toString(),
-                email: user.email,
-                role: user.role
+                id: result.user._id.toString(),
+                email: result.user.email,
+                role: result.user.role,
+                twoFactorEnabled: result.user.twoFactorEnabled
             },
-            token
+            token: result.token
         });
     }
     catch (error) {
@@ -76,11 +88,54 @@ router.get('/profile', auth_middleware_1.authenticate, (req, res) => __awaiter(v
             email: user.email,
             role: user.role,
             createdAt: user.createdAt,
-            updatedAt: user.updatedAt
+            updatedAt: user.updatedAt,
+            twoFactorEnabled: user.twoFactorEnabled
         });
     }
     catch (error) {
         res.status(500).json({ message: error.message });
+    }
+}));
+// Setup 2FA
+router.post('/2fa/setup', auth_middleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const result = yield authService.setup2FA(req.user.userId);
+        res.json({
+            message: '2FA setup initiated',
+            qrCodeUrl: result.qrCodeUrl,
+            backupCodes: result.backupCodes
+        });
+    }
+    catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}));
+// Enable 2FA
+router.post('/2fa/enable', auth_middleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ message: '2FA token is required' });
+        }
+        yield authService.enable2FA(req.user.userId, token);
+        res.json({ message: '2FA enabled successfully' });
+    }
+    catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}));
+// Disable 2FA
+router.post('/2fa/disable', auth_middleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ message: '2FA token is required' });
+        }
+        yield authService.disable2FA(req.user.userId, token);
+        res.json({ message: '2FA disabled successfully' });
+    }
+    catch (error) {
+        res.status(400).json({ message: error.message });
     }
 }));
 // Admin only route example

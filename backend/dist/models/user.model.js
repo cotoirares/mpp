@@ -36,6 +36,18 @@ const userSchema = new mongoose_1.default.Schema({
         type: String,
         enum: Object.values(UserRole),
         default: UserRole.USER
+    },
+    twoFactorSecret: {
+        type: String,
+        required: false
+    },
+    twoFactorEnabled: {
+        type: Boolean,
+        default: false
+    },
+    twoFactorBackupCodes: {
+        type: [String],
+        default: []
     }
 }, {
     timestamps: true

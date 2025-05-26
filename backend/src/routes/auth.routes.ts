@@ -36,22 +36,36 @@ router.post('/register', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, twoFactorToken } = req.body;
     
     // Validate input
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const { user, token } = await authService.login(email, password);
+    const result = await authService.login(email, password, twoFactorToken);
+    
+    if (result.requiresTwoFactor) {
+      return res.json({
+        message: '2FA required',
+        requiresTwoFactor: true,
+        user: {
+          id: result.user._id.toString(),
+          email: result.user.email,
+          role: result.user.role
+        }
+      });
+    }
+
     res.json({
       message: 'Login successful',
       user: {
-        id: user._id.toString(),
-        email: user.email,
-        role: user.role
+        id: result.user._id.toString(),
+        email: result.user.email,
+        role: result.user.role,
+        twoFactorEnabled: result.user.twoFactorEnabled
       },
-      token
+      token: result.token
     });
   } catch (error: any) {
     res.status(401).json({ message: error.message });
@@ -71,10 +85,57 @@ router.get('/profile', authenticate, async (req, res) => {
       email: user.email,
       role: user.role,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      twoFactorEnabled: user.twoFactorEnabled
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Setup 2FA
+router.post('/2fa/setup', authenticate, async (req, res) => {
+  try {
+    const result = await authService.setup2FA(req.user!.userId);
+    res.json({
+      message: '2FA setup initiated',
+      qrCodeUrl: result.qrCodeUrl,
+      backupCodes: result.backupCodes
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Enable 2FA
+router.post('/2fa/enable', authenticate, async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: '2FA token is required' });
+    }
+
+    await authService.enable2FA(req.user!.userId, token);
+    res.json({ message: '2FA enabled successfully' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Disable 2FA
+router.post('/2fa/disable', authenticate, async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: '2FA token is required' });
+    }
+
+    await authService.disable2FA(req.user!.userId, token);
+    res.json({ message: '2FA disabled successfully' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
   }
 });
 

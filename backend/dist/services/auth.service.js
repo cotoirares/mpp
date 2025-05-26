@@ -16,6 +16,8 @@ exports.AuthService = exports.UserRole = void 0;
 const mongodb_1 = require("mongodb");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const speakeasy_1 = __importDefault(require("speakeasy"));
+const qrcode_1 = __importDefault(require("qrcode"));
 var UserRole;
 (function (UserRole) {
     UserRole["USER"] = "USER";
@@ -60,14 +62,17 @@ class AuthService {
                 role,
                 createdAt: now,
                 updatedAt: now,
-                isMonitored: false
+                isMonitored: false,
+                twoFactorEnabled: false,
+                twoFactorBackupCodes: []
             };
             const result = yield collection.insertOne(user);
             return Object.assign(Object.assign({}, user), { _id: result.insertedId });
         });
     }
-    login(email, password) {
+    login(email, password, twoFactorToken) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             const collection = yield this.getCollection();
             // Find user
             const user = yield collection.findOne({ email });
@@ -78,6 +83,23 @@ class AuthService {
             const isValidPassword = yield bcryptjs_1.default.compare(password, user.password);
             if (!isValidPassword) {
                 throw new Error('Invalid credentials');
+            }
+            // Check if 2FA is enabled
+            if (user.twoFactorEnabled) {
+                if (!twoFactorToken) {
+                    return { user, token: '', requiresTwoFactor: true };
+                }
+                // Verify 2FA token
+                const isValid2FA = this.verify2FAToken(user.twoFactorSecret, twoFactorToken);
+                if (!isValid2FA) {
+                    // Check backup codes
+                    const isValidBackupCode = (_a = user.twoFactorBackupCodes) === null || _a === void 0 ? void 0 : _a.includes(twoFactorToken);
+                    if (!isValidBackupCode) {
+                        throw new Error('Invalid 2FA token');
+                    }
+                    // Remove used backup code
+                    yield collection.updateOne({ _id: user._id }, { $pull: { twoFactorBackupCodes: twoFactorToken } });
+                }
             }
             // Generate JWT token
             const token = jsonwebtoken_1.default.sign({
@@ -119,6 +141,94 @@ class AuthService {
         return __awaiter(this, void 0, void 0, function* () {
             yield this.client.close();
         });
+    }
+    // 2FA Methods
+    setup2FA(userId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const collection = yield this.getCollection();
+            const user = yield collection.findOne({ _id: new mongodb_1.ObjectId(userId) });
+            if (!user) {
+                throw new Error('User not found');
+            }
+            // Generate secret
+            const secret = speakeasy_1.default.generateSecret({
+                name: `Tennis App (${user.email})`,
+                issuer: 'Tennis App'
+            });
+            // Generate backup codes
+            const backupCodes = this.generateBackupCodes();
+            // Generate QR code
+            const qrCodeUrl = yield qrcode_1.default.toDataURL(secret.otpauth_url);
+            // Save secret to user (but don't enable 2FA yet)
+            yield collection.updateOne({ _id: new mongodb_1.ObjectId(userId) }, {
+                $set: {
+                    twoFactorSecret: secret.base32,
+                    twoFactorBackupCodes: backupCodes
+                }
+            });
+            return {
+                secret: secret.base32,
+                qrCodeUrl,
+                backupCodes
+            };
+        });
+    }
+    enable2FA(userId, token) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const collection = yield this.getCollection();
+            const user = yield collection.findOne({ _id: new mongodb_1.ObjectId(userId) });
+            if (!user || !user.twoFactorSecret) {
+                throw new Error('2FA setup not found');
+            }
+            // Verify the token
+            const isValid = this.verify2FAToken(user.twoFactorSecret, token);
+            if (!isValid) {
+                throw new Error('Invalid 2FA token');
+            }
+            // Enable 2FA
+            yield collection.updateOne({ _id: new mongodb_1.ObjectId(userId) }, { $set: { twoFactorEnabled: true } });
+            return true;
+        });
+    }
+    disable2FA(userId, token) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            const collection = yield this.getCollection();
+            const user = yield collection.findOne({ _id: new mongodb_1.ObjectId(userId) });
+            if (!user || !user.twoFactorEnabled) {
+                throw new Error('2FA not enabled');
+            }
+            // Verify the token or backup code
+            const isValidToken = this.verify2FAToken(user.twoFactorSecret, token);
+            const isValidBackupCode = (_a = user.twoFactorBackupCodes) === null || _a === void 0 ? void 0 : _a.includes(token);
+            if (!isValidToken && !isValidBackupCode) {
+                throw new Error('Invalid 2FA token');
+            }
+            // Disable 2FA and clear secrets
+            yield collection.updateOne({ _id: new mongodb_1.ObjectId(userId) }, {
+                $set: { twoFactorEnabled: false },
+                $unset: {
+                    twoFactorSecret: "",
+                    twoFactorBackupCodes: ""
+                }
+            });
+            return true;
+        });
+    }
+    verify2FAToken(secret, token) {
+        return speakeasy_1.default.totp.verify({
+            secret,
+            encoding: 'base32',
+            token,
+            window: 2 // Allow some time drift
+        });
+    }
+    generateBackupCodes() {
+        const codes = [];
+        for (let i = 0; i < 10; i++) {
+            codes.push(Math.random().toString(36).substring(2, 10).toUpperCase());
+        }
+        return codes;
     }
 }
 exports.AuthService = AuthService;
