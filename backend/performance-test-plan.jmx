@@ -49,7 +49,6 @@
       </ConfigTestElement>
       <hashTree/>
       
-      <!-- Header Manager for JSON -->
       <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
         <collectionProp name="HeaderManager.headers">
           <elementProp name="" elementType="Header">
