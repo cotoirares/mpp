@@ -47,6 +47,7 @@ export default function TwoFactorSettings() {
     
     setIsLoading(true);
     try {
+      console.log("Enabling 2FA with token:", verificationCode);
       const response = await fetch("/api/auth/2fa/enable", {
         method: "POST",
         headers: {
@@ -56,8 +57,11 @@ export default function TwoFactorSettings() {
         body: JSON.stringify({ token: verificationCode }),
       });
 
+      console.log("2FA enable response status:", response.status);
+      const data = await response.json();
+      console.log("2FA enable response data:", data);
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.message || "Failed to enable 2FA");
       }
 
@@ -67,6 +71,7 @@ export default function TwoFactorSettings() {
       // Refresh the page to update user state
       window.location.reload();
     } catch (error: any) {
+      console.error("2FA enable error:", error);
       toast.error(error.message || "Failed to enable 2FA");
     } finally {
       setIsLoading(false);

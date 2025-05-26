@@ -85,7 +85,7 @@ class AuthService {
                 throw new Error('Invalid credentials');
             }
             // Check if 2FA is enabled
-            if (user.twoFactorEnabled) {
+            if (user.twoFactorEnabled === true) {
                 if (!twoFactorToken) {
                     return { user, token: '', requiresTwoFactor: true };
                 }

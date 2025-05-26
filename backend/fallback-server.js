@@ -175,7 +175,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Check if 2FA is enabled
-    if (user.twoFactorEnabled) {
+    if (user.twoFactorEnabled === true) {
       if (!twoFactorToken) {
         return res.json({
           message: '2FA required',
@@ -326,6 +326,7 @@ app.post('/api/auth/2fa/setup', authenticate, async (req, res) => {
 app.post('/api/auth/2fa/enable', authenticate, async (req, res) => {
   try {
     const { token } = req.body;
+    console.log('2FA enable request - token:', token, 'userId:', req.user.userId);
     
     if (!token) {
       return res.status(400).json({ message: '2FA token is required' });
@@ -339,6 +340,7 @@ app.post('/api/auth/2fa/enable', authenticate, async (req, res) => {
 
     const { ObjectId } = require('mongodb');
     const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    console.log('Found user for 2FA enable:', user ? 'yes' : 'no', 'has secret:', !!user?.twoFactorSecret);
     
     if (!user || !user.twoFactorSecret) {
       return res.status(400).json({ message: '2FA setup not found' });
@@ -352,15 +354,19 @@ app.post('/api/auth/2fa/enable', authenticate, async (req, res) => {
       window: 2
     });
 
+    console.log('2FA token verification result:', isValid);
+
     if (!isValid) {
       return res.status(400).json({ message: 'Invalid 2FA token' });
     }
 
     // Enable 2FA
-    await db.collection('users').updateOne(
+    const updateResult = await db.collection('users').updateOne(
       { _id: new ObjectId(req.user.userId) },
       { $set: { twoFactorEnabled: true } }
     );
+
+    console.log('2FA enable update result:', updateResult);
 
     res.json({ message: '2FA enabled successfully' });
   } catch (error) {
