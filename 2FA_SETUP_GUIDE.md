@@ -124,5 +124,22 @@ If you previously disabled 2FA, you can re-enable it by following the setup proc
 - `POST /api/auth/2fa/enable` - Enable 2FA after verification
 - `POST /api/auth/2fa/disable` - Disable 2FA
 - `POST /api/auth/login` - Login with optional 2FA token
+- `GET /api/auth/profile` - Get user profile with 2FA status
+
+## Deployment Notes
+
+The 2FA functionality has been implemented in both the main backend server and the fallback server to ensure compatibility in all deployment scenarios:
+
+### Main Backend Server
+- Uses TypeScript with proper type definitions
+- Implements the AuthService class with full 2FA functionality
+- Includes proper error handling and validation
+
+### Fallback Server
+- JavaScript implementation for compatibility
+- Includes all 2FA endpoints with the same functionality
+- Automatically handles fallback scenarios when the main server is unavailable
+
+Both implementations use the same database schema and provide identical API responses, ensuring seamless operation regardless of which server is active.
 
 This implementation follows industry best practices for 2FA and provides a secure, user-friendly experience for managing account security. 

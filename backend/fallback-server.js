@@ -2,6 +2,8 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -117,7 +119,9 @@ app.post('/api/auth/register', async (req, res) => {
       password: hashedPassword,
       role,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      twoFactorEnabled: false,
+      twoFactorBackupCodes: []
     };
 
     const result = await db.collection('users').insertOne(user);
@@ -140,7 +144,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, twoFactorToken } = req.body;
     
     if (!email || !password) {
       return res.status(400).json({ 
@@ -170,6 +174,45 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      if (!twoFactorToken) {
+        return res.json({
+          message: '2FA required',
+          requiresTwoFactor: true,
+          user: {
+            id: user._id.toString(),
+            email: user.email,
+            role: user.role
+          }
+        });
+      }
+
+      // Verify 2FA token
+      const isValid2FA = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: twoFactorToken,
+        window: 2
+      });
+
+      if (!isValid2FA) {
+        // Check backup codes
+        const isValidBackupCode = user.twoFactorBackupCodes && user.twoFactorBackupCodes.includes(twoFactorToken);
+        if (!isValidBackupCode) {
+          return res.status(401).json({
+            message: 'Invalid 2FA token'
+          });
+        }
+        
+        // Remove used backup code
+        await db.collection('users').updateOne(
+          { _id: user._id },
+          { $pull: { twoFactorBackupCodes: twoFactorToken } }
+        );
+      }
+    }
+
     // Generate JWT token
     const token = jwt.sign(
       { 
@@ -186,7 +229,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: { 
         id: user._id.toString(),
         email: user.email,
-        role: user.role
+        role: user.role,
+        twoFactorEnabled: user.twoFactorEnabled
       },
       token
     });
@@ -195,6 +239,217 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({
       message: 'Internal server error during login'
     });
+  }
+});
+
+// Authentication middleware for 2FA endpoints
+const authenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'Invalid token format' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+// Helper function to generate backup codes
+const generateBackupCodes = () => {
+  const codes = [];
+  for (let i = 0; i < 10; i++) {
+    codes.push(Math.random().toString(36).substring(2, 10).toUpperCase());
+  }
+  return codes;
+};
+
+// 2FA Setup endpoint
+app.post('/api/auth/2fa/setup', authenticate, async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate secret
+    const secret = speakeasy.generateSecret({
+      name: `Tennis App (${user.email})`,
+      issuer: 'Tennis App'
+    });
+
+    // Generate backup codes
+    const backupCodes = generateBackupCodes();
+
+    // Generate QR code
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    // Save secret to user (but don't enable 2FA yet)
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { 
+        $set: { 
+          twoFactorSecret: secret.base32,
+          twoFactorBackupCodes: backupCodes
+        } 
+      }
+    );
+
+    res.json({
+      message: '2FA setup initiated',
+      qrCodeUrl,
+      backupCodes
+    });
+  } catch (error) {
+    console.error('2FA setup error:', error);
+    res.status(500).json({ message: 'Internal server error during 2FA setup' });
+  }
+});
+
+// 2FA Enable endpoint
+app.post('/api/auth/2fa/enable', authenticate, async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: '2FA token is required' });
+    }
+
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    
+    if (!user || !user.twoFactorSecret) {
+      return res.status(400).json({ message: '2FA setup not found' });
+    }
+
+    // Verify the token
+    const isValid = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token,
+      window: 2
+    });
+
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid 2FA token' });
+    }
+
+    // Enable 2FA
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: { twoFactorEnabled: true } }
+    );
+
+    res.json({ message: '2FA enabled successfully' });
+  } catch (error) {
+    console.error('2FA enable error:', error);
+    res.status(500).json({ message: 'Internal server error during 2FA enable' });
+  }
+});
+
+// 2FA Disable endpoint
+app.post('/api/auth/2fa/disable', authenticate, async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: '2FA token is required' });
+    }
+
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    
+    if (!user || !user.twoFactorEnabled) {
+      return res.status(400).json({ message: '2FA not enabled' });
+    }
+
+    // Verify the token or backup code
+    const isValidToken = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token,
+      window: 2
+    });
+    const isValidBackupCode = user.twoFactorBackupCodes && user.twoFactorBackupCodes.includes(token);
+    
+    if (!isValidToken && !isValidBackupCode) {
+      return res.status(400).json({ message: 'Invalid 2FA token' });
+    }
+
+    // Disable 2FA and clear secrets
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { 
+        $set: { twoFactorEnabled: false },
+        $unset: { 
+          twoFactorSecret: "",
+          twoFactorBackupCodes: ""
+        }
+      }
+    );
+
+    res.json({ message: '2FA disabled successfully' });
+  } catch (error) {
+    console.error('2FA disable error:', error);
+    res.status(500).json({ message: 'Internal server error during 2FA disable' });
+  }
+});
+
+// Get current user profile
+app.get('/api/auth/profile', authenticate, async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({
+        message: 'Database connection not available'
+      });
+    }
+
+    const { ObjectId } = require('mongodb');
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      twoFactorEnabled: user.twoFactorEnabled || false
+    });
+  } catch (error) {
+    console.error('Profile error:', error);
+    res.status(500).json({ message: 'Internal server error while fetching profile' });
   }
 });
 
