@@ -1,7 +1,3 @@
-/**
- * This is a fallback server that will be used if the TypeScript build fails
- * It uses minimal dependencies and connects to MongoDB for real authentication
- */
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
