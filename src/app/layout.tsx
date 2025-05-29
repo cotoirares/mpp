@@ -9,7 +9,6 @@ import { useSession } from "@/context/SessionContext";
 import { useEffect, useState } from "react";
 
 
-// Unprotected routes - no auth needed
 const publicRoutes = ['/login', '/register'];
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -20,11 +19,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isPublicRoute = publicRoutes.some(route => pathname?.startsWith(route));
   
   useEffect(() => {
-    // If on public route, or logged in, allow access
     if (isPublicRoute || (!isLoading && user)) {
       setAuthorized(true);
     } else if (!isLoading && !user) {
-      // If not on public route and not logged in, redirect to login
       console.log('Auth guard: redirecting to login');
       window.location.href = '/login';
     }

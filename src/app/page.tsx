@@ -13,19 +13,17 @@ export default function Home() {
   const { user, isLoading } = useSession();
   const router = useRouter();
 
-  // Force redirect to login if not authenticated
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (!isLoading && !user) {
         console.log("User not authenticated, redirecting to login");
-        window.location.href = "/login"; // Updated path
+        window.location.href = "/login";
       }
     }, 100);
 
     return () => clearTimeout(timeoutId);
   }, [user, isLoading]);
 
-  // While checking authentication status, show loading
   if (isLoading || !user) {
     return (
       <div className="flex flex-col justify-center items-center h-screen">
@@ -35,7 +33,6 @@ export default function Home() {
     );
   }
 
-  // Only render the main content if authenticated
   return (
     <PlayerProvider>
       <main className="container mx-auto px-4 py-8">
